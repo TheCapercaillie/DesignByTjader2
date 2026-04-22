@@ -1,0 +1,41 @@
+﻿@page "/products"
+@using DesignByTjader.Data
+@using DesignByTjader.Models
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+
+<h3>Smycken</h3>
+
+@if (products == null)
+{
+    <p>Laddar produkter...</p>
+}
+else if (!products.Any())
+{
+    <p>Inga produkter hittades.</p>
+}
+else
+{
+    foreach (var product in products)
+    {
+        <div style="border:1px solid #ccc; padding:15px; margin-bottom:15px; border-radius:8px;">
+            <h4>@product.Name</h4>
+            <p>@product.Description</p>
+            <p><strong>Pris:</strong> @product.Price kr</p>
+
+            @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+            {
+                <img src="@product.ImageUrl" alt="@product.Name" width="200" />
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<Product>? products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        products = await Db.Products.ToListAsync();
+    }
+}
