@@ -1,6 +1,7 @@
 using DesignByTjader.Components;
 using DesignByTjader.Components.Account;
 using DesignByTjader.Data;
+using DesignByTjader.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -13,6 +14,8 @@ builder.Services.AddRazorComponents()
 
 
 builder.Services.AddScoped<HttpClient>();
+
+builder.Services.AddScoped<CartService>();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();

@@ -1,0 +1,86 @@
+﻿@page "/cart"
+@rendermode InteractiveServer
+@using DesignByTjader.Services
+@inject CartService CartService
+
+<h3>Kundvagn</h3>
+
+@if (CartService.Items == null || !CartService.Items.Any())
+{
+    <p>Din kundvagn är tom.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Produkt</th>
+                <th>Pris</th>
+                <th>Antal</th>
+                <th>Totalt</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in CartService.Items)
+            {
+                <tr>
+                    <td>@item.ProductName</td>
+                    <td>@item.Price kr</td>
+                    <td>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Decrease(item.ProductId)">-</button>
+                        <span class="mx-2">@item.Quantity</span>
+                        <button class="btn btn-sm btn-secondary" @onclick="() => Increase(item.ProductId)">+</button>
+                    </td>
+                    <td>@item.TotalPrice kr</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" @onclick="() => Remove(item.ProductId)">
+                            Ta bort
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <h4>Totalpris: @CartService.GetTotalPrice() kr</h4>
+
+    <button class="btn btn-danger" @onclick="ClearCart">
+        Töm kundvagn
+    </button>
+
+    <button class="btn btn-success ms-2">
+        Gå till betalning
+    </button>
+}
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CartService.LoadCartAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task Increase(int productId)
+    {
+        await CartService.IncreaseQuantityAsync(productId);
+    }
+
+    private async Task Decrease(int productId)
+    {
+        await CartService.DecreaseQuantityAsync(productId);
+    }
+
+    private async Task Remove(int productId)
+    {
+        await CartService.RemoveFromCartAsync(productId);
+    }
+
+    private async Task ClearCart()
+    {
+        await CartService.ClearCartAsync();
+    }
+}
