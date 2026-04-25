@@ -9,6 +9,13 @@
 
 <h4>Lägg till / redigera produkt</h4>
 
+@if (isEditing)
+{
+    <p class="text-warning">
+        Du redigerar nu produkten: @productForm.Name
+    </p>
+}
+
 <div class="mb-3">
     <label>Namn</label>
     <input class="form-control" @bind="productForm.Name" />
