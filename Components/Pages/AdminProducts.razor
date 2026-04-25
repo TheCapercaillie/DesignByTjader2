@@ -1,0 +1,159 @@
+﻿@page "/admin/products"
+@using DesignByTjader.Data
+@using DesignByTjader.Models
+@using Microsoft.EntityFrameworkCore
+@attribute [Authorize]
+@inject ApplicationDbContext Db
+
+<h3>Admin - Produkter</h3>
+
+<h4>Lägg till / redigera produkt</h4>
+
+<div class="mb-3">
+    <label>Namn</label>
+    <input class="form-control" @bind="productForm.Name" />
+</div>
+
+<div class="mb-3">
+    <label>Beskrivning</label>
+    <textarea class="form-control" @bind="productForm.Description"></textarea>
+</div>
+
+<div class="mb-3">
+    <label>Pris</label>
+    <input class="form-control" type="number" step="0.01" @bind="productForm.Price" />
+</div>
+
+<div class="mb-3">
+    <label>Bildlänk (valfritt)</label>
+    <input class="form-control" @bind="productForm.ImageUrl" />
+</div>
+
+<button class="btn btn-primary" @onclick="SaveProduct">
+    @(isEditing ? "Spara ändringar" : "Lägg till produkt")
+</button>
+
+@if (isEditing)
+{
+    <button class="btn btn-secondary ms-2" @onclick="CancelEdit">Avbryt</button>
+}
+
+<hr />
+
+<h4>Produkter</h4>
+
+@if (products == null)
+{
+    <p>Laddar produkter...</p>
+}
+else if (!products.Any())
+{
+    <p>Inga produkter finns ännu.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Namn</th>
+                <th>Beskrivning</th>
+                <th>Pris</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in products)
+            {
+                <tr>
+                    <td>@product.Name</td>
+                    <td>@product.Description</td>
+                    <td>@product.Price kr</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" @onclick="() => EditProduct(product)">
+                            Redigera
+                        </button>
+
+                        <button class="btn btn-sm btn-danger ms-2" @onclick="() => DeleteProduct(product.Id)">
+                            Ta bort
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<Product>? products;
+    private Product productForm = new();
+    private bool isEditing = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        products = await Db.Products.ToListAsync();
+    }
+
+    private async Task SaveProduct()
+    {
+        if (isEditing)
+        {
+            var product = await Db.Products.FindAsync(productForm.Id);
+
+            if (product != null)
+            {
+                product.Name = productForm.Name;
+                product.Description = productForm.Description;
+                product.Price = productForm.Price;
+                product.ImageUrl = productForm.ImageUrl;
+            }
+        }
+        else
+        {
+            Db.Products.Add(productForm);
+        }
+
+        await Db.SaveChangesAsync();
+
+        productForm = new Product();
+        isEditing = false;
+
+        await LoadProducts();
+    }
+
+    private void EditProduct(Product product)
+    {
+        productForm = new Product
+        {
+            Id = product.Id,
+            Name = product.Name,
+            Description = product.Description,
+            Price = product.Price,
+            ImageUrl = product.ImageUrl
+        };
+
+        isEditing = true;
+    }
+
+    private async Task DeleteProduct(int id)
+    {
+        var product = await Db.Products.FindAsync(id);
+
+        if (product != null)
+        {
+            Db.Products.Remove(product);
+            await Db.SaveChangesAsync();
+            await LoadProducts();
+        }
+    }
+
+    private void CancelEdit()
+    {
+        productForm = new Product();
+        isEditing = false;
+    }
+}
