@@ -17,6 +17,7 @@ else
                 <th>Produkt</th>
                 <th>Pris</th>
                 <th>Antal</th>
+                <th>Färg</th>
                 <th>Totalt</th>
                 <th></th>
             </tr>
@@ -26,6 +27,7 @@ else
             {
                 <tr>
                     <td>@item.ProductName</td>
+                    <td>@(item.SelectedColor ?? "-")</td>
                     <td>@item.Price kr</td>
                     <td>
                         <button class="btn btn-sm btn-secondary" @onclick="() => Decrease(item.ProductId)">-</button>
@@ -103,7 +105,8 @@ else
                 OrderId = order.Id,
                 ProductName = item.ProductName,
                 Price = item.Price,
-                Quantity = item.Quantity
+                Quantity = item.Quantity,
+                SelectedColor = item.SelectedColor
             });
         }
 

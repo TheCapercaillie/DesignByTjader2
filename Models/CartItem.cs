@@ -10,6 +10,8 @@
 
         public int Quantity { get; set; } = 1;
 
+        public string? SelectedColor { get; set; }
+
         public decimal TotalPrice => Price * Quantity;
     }
 }

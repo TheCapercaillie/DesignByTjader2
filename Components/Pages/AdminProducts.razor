@@ -1,9 +1,17 @@
 ﻿@page "/admin/products"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Components.Forms
+@inject IWebHostEnvironment Env
 @using Microsoft.EntityFrameworkCore
 @attribute [Authorize]
 @inject ApplicationDbContext Db
 
 <h3>Admin - Produkter</h3>
+
+@if (!string.IsNullOrWhiteSpace(message))
+{
+    <p class="text-success">@message</p>
+}
 
 <h4>Lägg till / redigera produkt</h4>
 
@@ -30,8 +38,13 @@
 </div>
 
 <div class="mb-3">
-    <label>Bildlänk (valfritt)</label>
-    <input class="form-control" @bind="productForm.ImageUrl" />
+    <label>Bilder</label>
+    <InputFile OnChange="HandleImageUpload" multiple />
+</div>
+
+<div class="mb-3">
+    <label>Färger / varianter</label>
+    <input class="form-control" @bind="variantsInput" placeholder="Röd, Blå, Grön" />
 </div>
 
 <button class="btn btn-primary" @onclick="SaveProduct">
@@ -92,6 +105,14 @@ else
     private List<Product>? products;
     private Product productForm = new();
     private bool isEditing = false;
+    private IReadOnlyList<IBrowserFile> selectedImages = new List<IBrowserFile>();
+    private string variantsInput = string.Empty;
+    private string? message;
+
+    private void HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        selectedImages = e.GetMultipleFiles();
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -100,31 +121,97 @@ else
 
     private async Task LoadProducts()
     {
-        products = await Db.Products.ToListAsync();
+        products = await Db.Products
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+            .ToListAsync();
     }
 
     private async Task SaveProduct()
     {
+        Product? product;
+
         if (isEditing)
         {
-            var product = await Db.Products.FindAsync(productForm.Id);
+            product = await Db.Products
+                .Include(p => p.Images)
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(p => p.Id == productForm.Id);
 
-            if (product != null)
+            if (product == null)
             {
-                product.Name = productForm.Name;
-                product.Description = productForm.Description;
-                product.Price = productForm.Price;
-                product.ImageUrl = productForm.ImageUrl;
+                return;
             }
+
+            product.Name = productForm.Name;
+            product.Description = productForm.Description;
+            product.Price = productForm.Price;
         }
         else
         {
-            Db.Products.Add(productForm);
+            product = new Product
+            {
+                Name = productForm.Name,
+                Description = productForm.Description,
+                Price = productForm.Price
+            };
+
+            Db.Products.Add(product);
+            await Db.SaveChangesAsync();
+        }
+
+        foreach (var image in selectedImages)
+        {
+            var fileExtension = Path.GetExtension(image.Name);
+            var fileName = $"{Guid.NewGuid()}{fileExtension}";
+            var folderPath = Path.Combine(Env.WebRootPath, "uploads", "products");
+
+            if (!Directory.Exists(folderPath))
+            {
+                Directory.CreateDirectory(folderPath);
+            }
+
+            var filePath = Path.Combine(folderPath, fileName);
+
+            await using var stream = new FileStream(filePath, FileMode.Create);
+            await image.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
+
+            Db.ProductImages.Add(new ProductImage
+            {
+                ProductId = product.Id,
+                ImageUrl = $"/uploads/products/{fileName}"
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(variantsInput))
+        {
+            if (isEditing)
+            {
+                Db.ProductVariants.RemoveRange(product.Variants);
+            }
+
+            var colors = variantsInput
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(c => c.Trim())
+                .ToList();
+
+            foreach (var color in colors)
+            {
+                Db.ProductVariants.Add(new ProductVariant
+                {
+                    ProductId = product.Id,
+                    Color = color
+                });
+            }
         }
 
         await Db.SaveChangesAsync();
 
+        message = isEditing ? "Produkten uppdaterades." : "Produkten lades till.";
+
         productForm = new Product();
+        selectedImages = new List<IBrowserFile>();
+        variantsInput = string.Empty;
         isEditing = false;
 
         await LoadProducts();
@@ -137,9 +224,10 @@ else
             Id = product.Id,
             Name = product.Name,
             Description = product.Description,
-            Price = product.Price,
-            ImageUrl = product.ImageUrl
+            Price = product.Price
         };
+
+        variantsInput = string.Join(", ", product.Variants.Select(v => v.Color));
 
         isEditing = true;
     }

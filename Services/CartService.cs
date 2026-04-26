@@ -32,11 +32,13 @@ namespace DesignByTjader.Services
             await _js.InvokeVoidAsync("localStorage.setItem", CartKey, json);
         }
 
-        public async Task AddToCartAsync(Product product)
+        public async Task AddToCartAsync(Product product, string? selectedColor)
         {
             await LoadCartAsync();
 
-            var existingItem = Items.FirstOrDefault(i => i.ProductId == product.Id);
+            var existingItem = Items.FirstOrDefault(i =>
+                i.ProductId == product.Id &&
+                i.SelectedColor == selectedColor);
 
             if (existingItem != null)
             {
@@ -49,7 +51,8 @@ namespace DesignByTjader.Services
                     ProductId = product.Id,
                     ProductName = product.Name,
                     Price = product.Price,
-                    Quantity = 1
+                    Quantity = 1,
+                    SelectedColor = selectedColor
                 });
             }
 
