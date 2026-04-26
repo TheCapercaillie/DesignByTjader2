@@ -1,0 +1,54 @@
+﻿@page "/admin/orders"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inject ApplicationDbContext Db
+
+<h3>Admin - Orders</h3>
+
+@if (orders == null)
+{
+    <p>Laddar orders...</p>
+}
+else if (!orders.Any())
+{
+    <p>Inga orders ännu.</p>
+}
+else
+{
+    @foreach (var order in orders)
+    {
+        <div style="border:1px solid #ccc; padding:15px; margin-bottom:20px; border-radius:8px;">
+            
+            <h4>Order #@order.Id</h4>
+            <p><strong>Datum:</strong> @order.CreatedAt</p>
+            <p><strong>Status:</strong> @order.Status</p>
+            <p><strong>Total:</strong> @order.TotalPrice kr</p>
+
+            <h5>Produkter:</h5>
+
+            <ul>
+                @foreach (var item in order.OrderItems)
+                {
+                    <li>
+                        @item.ProductName – @item.Quantity st – @item.Price kr
+                    </li>
+                }
+            </ul>
+
+        </div>
+    }
+}
+
+@code {
+    private List<Order>? orders;
+
+    protected override async Task OnInitializedAsync()
+    {
+        orders = await Db.Orders
+            .Include(o => o.OrderItems)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync();
+    }
+}
