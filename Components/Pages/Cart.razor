@@ -1,7 +1,7 @@
 ﻿@page "/cart"
 @rendermode InteractiveServer
-@using DesignByTjader.Services
 @inject CartService CartService
+@inject ApplicationDbContext Db
 
 <h3>Kundvagn</h3>
 
@@ -49,7 +49,7 @@ else
         Töm kundvagn
     </button>
 
-    <button class="btn btn-success ms-2">
+    <button class="btn btn-success ms-2" @onclick="Checkout">
         Gå till betalning
     </button>
 }
@@ -82,5 +82,36 @@ else
     private async Task ClearCart()
     {
         await CartService.ClearCartAsync();
+    }
+}
+@code {
+    private async Task Checkout()
+    {
+        var order = new Order
+        {
+            TotalPrice = CartService.GetTotalPrice(),
+            Status = "Pending"
+        };
+
+        Db.Orders.Add(order);
+        await Db.SaveChangesAsync();
+
+        foreach (var item in CartService.Items)
+        {
+            Db.OrderItems.Add(new OrderItem
+            {
+                OrderId = order.Id,
+                ProductName = item.ProductName,
+                Price = item.Price,
+                Quantity = item.Quantity
+            });
+        }
+
+        await Db.SaveChangesAsync();
+
+        await CartService.ClearCartAsync();
+
+        // SENARE:
+        // redirect till Stripe / Swish / Klarna
     }
 }
