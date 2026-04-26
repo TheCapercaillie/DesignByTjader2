@@ -3,58 +3,66 @@
 @inject CartService CartService
 @inject ApplicationDbContext Db
 
-<h3>Kundvagn</h3>
+<div class="page-container">
+    <div class="section-title">
+        <h2>Kundvagn</h2>
+        <p>Kontrollera dina produkter innan du går vidare.</p>
+    </div>
 
-@if (CartService.Items == null || !CartService.Items.Any())
-{
-    <p>Din kundvagn är tom.</p>
-}
-else
-{
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Produkt</th>
-                <th>Pris</th>
-                <th>Antal</th>
-                <th>Färg</th>
-                <th>Totalt</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var item in CartService.Items)
-            {
-                <tr>
-                    <td>@item.ProductName</td>
-                    <td>@(item.SelectedColor ?? "-")</td>
-                    <td>@item.Price kr</td>
-                    <td>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Decrease(item.ProductId)">-</button>
-                        <span class="mx-2">@item.Quantity</span>
-                        <button class="btn btn-sm btn-secondary" @onclick="() => Increase(item.ProductId)">+</button>
-                    </td>
-                    <td>@item.TotalPrice kr</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger" @onclick="() => Remove(item.ProductId)">
-                            Ta bort
-                        </button>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <div class="cart-box">
+        @if (CartService.Items == null || !CartService.Items.Any())
+        {
+            <p>Din kundvagn är tom.</p>
+            <a class="btn-main" href="/products">Till produkter</a>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Produkt</th>
+                        <th>Variant</th>
+                        <th>Pris</th>
+                        <th>Antal</th>
+                        <th>Totalt</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in CartService.Items)
+                    {
+                        <tr>
+                            <td>@item.ProductName</td>
+                            <td>@(item.SelectedColor ?? "-")</td>
+                            <td>@item.Price kr</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" @onclick="() => Decrease(item.ProductId)">-</button>
+                                <span class="mx-2">@item.Quantity</span>
+                                <button class="btn btn-sm btn-secondary" @onclick="() => Increase(item.ProductId)">+</button>
+                            </td>
+                            <td>@item.TotalPrice kr</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" @onclick="() => Remove(item.ProductId)">
+                                    Ta bort
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
 
-    <h4>Totalpris: @CartService.GetTotalPrice() kr</h4>
+            <h4>Totalpris: @CartService.GetTotalPrice() kr</h4>
 
-    <button class="btn btn-danger" @onclick="ClearCart">
-        Töm kundvagn
-    </button>
+            <button class="btn btn-outline-danger" @onclick="ClearCart">
+                Töm kundvagn
+            </button>
 
-    <button class="btn btn-success ms-2" @onclick="Checkout">
-        Gå till betalning
-    </button>
-}
+            <button class="btn-main ms-2" @onclick="Checkout">
+                Gå till betalning
+            </button>
+        }
+    </div>
+</div>
 
 @code {
     protected override async Task OnAfterRenderAsync(bool firstRender)

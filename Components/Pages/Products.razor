@@ -4,63 +4,107 @@
 @inject ApplicationDbContext Db
 @inject CartService CartService
 
-<h3>Smycken</h3>
+<div class="page-container">
+    <div class="section-title">
+        <h2>Produkter</h2>
+        <p>Här visas tillgängliga produkter.</p>
+    </div>
 
-@if (!string.IsNullOrEmpty(message))
-{
-    <p class="text-success">@message</p>
-}
-@if (products == null)
-{
-    <p>Laddar produkter...</p>
-}
-else if (!products.Any())
-{
-    <p>Inga produkter hittades.</p>
-}
-else
-{
-    foreach (var product in products)
+    <div class="mb-4">
+        <button class="btn btn-outline-dark me-2" @onclick='() => selectedCategory = "Alla"'>
+            Alla
+        </button>
+
+        <button class="btn btn-outline-dark me-2" @onclick='() => selectedCategory = "Smycken"'>
+            Smycken
+        </button>
+
+        <button class="btn btn-outline-dark me-2" @onclick='() => selectedCategory = "Heminredning"'>
+            Heminredning
+        </button>
+
+        <button class="btn btn-outline-dark me-2" @onclick='() => selectedCategory = "Väskor"'>
+            Väskor
+        </button>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
     {
-        <div style="border:1px solid #ccc; padding:15px; margin-bottom:15px; border-radius:8px;">
-            <h4>@product.Name</h4>
-            <p>@product.Description</p>
-            <p><strong>Pris:</strong> @product.Price kr</p>
+        <p class="text-success">@message</p>
+    }
 
-            @if (product.Images.Any())
+    @if (products == null)
+    {
+        <p>Laddar produkter...</p>
+    }
+    else if (!products.Any())
+    {
+        <p>Inga produkter hittades.</p>
+    }
+    else
+    {
+        <div class="product-grid">
+            @foreach (var product in FilteredProducts)
             {
-                <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-                    @foreach (var image in product.Images)
+                <div class="product-card">
+                    @if (product.Images.Any())
                     {
-                        <img src="@image.ImageUrl" alt="@product.Name" width="140" style="border-radius:8px;" />
-                    }
-                </div>
-            }
+                        var firstImage = product.Images.First();
 
-            @if (product.Variants.Any())
-            {
-                <div class="mb-3">
-                    <label>Välj färg:</label>
-                    <select class="form-control" @bind="selectedColors[product.Id]">
-                        @foreach (var variant in product.Variants)
+                        <img src="@firstImage.ImageUrl" alt="@product.Name" />
+
+                        @if (product.Images.Count > 1)
                         {
-                            <option value="@variant.Color">@variant.Color</option>
+                            <div class="product-thumbnails">
+                                @foreach (var image in product.Images.Skip(1).Take(4))
+                                {
+                                    <img src="@image.ImageUrl" alt="@product.Name" />
+                                }
+                            </div>
                         }
-                    </select>
+                    }
+
+                    <h4>@product.Name</h4>
+
+                    <p><strong>Kategori:</strong> @product.Category</p>
+
+                    <p>@product.Description</p>
+
+                    <p class="product-price">@product.Price kr</p>
+
+                    @if (product.Variants.Any())
+                    {
+                        <div class="mb-3">
+                            <label>Välj variant:</label>
+                            <select class="form-control" @bind="selectedColors[product.Id]">
+                                @foreach (var variant in product.Variants)
+                                {
+                                    <option value="@variant.Color">@variant.Color</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    <button class="btn-main" @onclick="() => AddToCart(product)">
+                        Lägg i kundvagn
+                    </button>
                 </div>
             }
-
-            <button class="btn btn-primary" @onclick="() => AddToCart(product)">
-                Lägg i kundvagn
-            </button>
         </div>
     }
-}
+</div>
 
 @code {
     private List<Product>? products;
     private string? message;
     private Dictionary<int, string?> selectedColors = new();
+
+    private string selectedCategory = "Alla";
+
+    private IEnumerable<Product> FilteredProducts =>
+    selectedCategory == "Alla"
+        ? products ?? Enumerable.Empty<Product>()
+        : products?.Where(p => p.Category == selectedCategory) ?? Enumerable.Empty<Product>();
 
     protected override async Task OnInitializedAsync()
     {
