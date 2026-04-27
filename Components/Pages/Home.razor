@@ -1,27 +1,76 @@
 ﻿@page "/"
 
-<div class="page-container">
-    <section class="hero">
+<div class="home-page">
+
+    <div class="top-banner">
+        Fri frakt inom Sverige vid köp över 1000 kr
+    </div>
+
+    <section class="hero-section">
         <div class="hero-text">
-            <h1>Design By Tjäder</h1>
-            <p>
-                Handgjorda sydsamiska smycken och accessoarer i renskinn och kläde.
+            <img src="/images/logo/logo.jpeg" alt="Design By Tjäder" class="hero-logo" />
+
+            <p class="hero-subtitle">Samisk design med en modern touch</p>
+
+            <h1>Handgjorda samiska produkter</h1>
+
+            <p class="hero-description">
+                Välkommen till Design By Tjäder. Här hittar du handgjorda samiska produkter
+                såsom smycken, heminredning och väskor.
             </p>
 
-            <a class="btn-main" href="/products">
-                Se produkter
-            </a>
+            <div class="hero-buttons">
+                <a href="/products" class="btn-main">Se produkter</a>
+                <a href="/cart" class="btn-secondary-custom">Kundvagn</a>
+            </div>
+
+            <div class="hero-info-boxes">
+                <div class="info-box">Handgjort</div>
+                <div class="info-box">Samisk design</div>
+                <div class="info-box">Unika produkter</div>
+            </div>
         </div>
 
-        <div class="hero-image">
-            <img src="/images/home/hero.jpeg" alt="Samiska armband" />
+        <div class="hero-image-wrapper">
+            <img src="/images/home/hero.jpeg" alt="Hero-bild" class="hero-image" />
         </div>
     </section>
 
-    <section class="section-title">
-        <h2>Smycken i renskinn och kläde</h2>
-        <p>
-            Varje produkt tillverkas med omsorg och kan finnas i olika färger och varianter.
-        </p>
+    <section class="home-intro-section">
+        <div class="section-heading">
+            <h2>Produkter med känsla och berättelse</h2>
+            <p>
+                Varje produkt är skapad med inspiration från samisk tradition med en modern touch.
+                Sortimentet innehåller både smycken, heminredning och andra handgjorda produkter.
+            </p>
+        </div>
     </section>
+
+    <section class="categories-section">
+        <div class="section-heading">
+            <h2>Utforska sortimentet</h2>
+            <p>Välj bland olika typer av produkter i butiken.</p>
+        </div>
+
+        <div class="category-grid">
+            <div class="category-card">
+                <h3>Smycken</h3>
+                <p>Armband och andra handgjorda detaljer.</p>
+                <a href="/products" class="category-link">Visa produkter</a>
+            </div>
+
+            <div class="category-card">
+                <h3>Heminredning</h3>
+                <p>Exempelvis grytlappar, ljusstakar och dekorativa detaljer.</p>
+                <a href="/products" class="category-link">Visa produkter</a>
+            </div>
+
+            <div class="category-card">
+                <h3>Väskor</h3>
+                <p>Handgjorda väskor med inspiration från samisk design.</p>
+                <a href="/products" class="category-link">Visa produkter</a>
+            </div>
+        </div>
+    </section>
+
 </div>
