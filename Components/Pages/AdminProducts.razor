@@ -50,7 +50,41 @@
 <div class="mb-3">
     <label>Bilder</label>
     <InputFile OnChange="HandleImageUpload" multiple />
+
+    <small class="text-muted d-block mt-1">
+        Välj endast nya bilder som ska läggas till. Befintliga bilder ligger kvar tills du tar bort dem.
+    </small>
 </div>
+
+@if (isEditing && editingImages.Any())
+{
+    <div class="mb-3">
+        <label>Befintliga bilder</label>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px;">
+            @foreach (var image in editingImages)
+            {
+                <div style="border:1px solid #ccc; padding:8px; border-radius:8px;">
+                    <img src="@image.ImageUrl"
+                         alt="Produktbild"
+                         style="width:120px; height:120px; object-fit:cover; border-radius:6px;" />
+
+                    <br />
+
+                    <button class="btn btn-sm btn-outline-primary mt-2"
+                            @onclick="() => SetMainImage(image)">
+                        Använd som huvudbild
+                    </button>
+
+                    <button class="btn btn-sm btn-danger mt-2"
+                            @onclick="() => DeleteImage(image)">
+                        Ta bort bild
+                    </button>
+                </div>
+            }
+        </div>
+    </div>
+}
 
 <div class="mb-3">
     <label>Färger / varianter</label>
@@ -120,10 +154,20 @@ else
     private IReadOnlyList<IBrowserFile> selectedImages = new List<IBrowserFile>();
     private string variantsInput = string.Empty;
     private string? message;
+    private List<ProductImage> editingImages = new();
 
     private void HandleImageUpload(InputFileChangeEventArgs e)
     {
-        selectedImages = e.GetMultipleFiles();
+        var files = e.GetMultipleFiles();
+
+        if (files.Count > 10)
+        {
+            message = "Du kan max ladda upp 10 bilder per produkt.";
+            selectedImages = new List<IBrowserFile>();
+            return;
+        }
+
+        selectedImages = files;
     }
 
     protected override async Task OnInitializedAsync()
@@ -190,10 +234,16 @@ else
             await using var stream = new FileStream(filePath, FileMode.Create);
             await image.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
 
+            var nextSortOrder = await Db.ProductImages
+                .Where(i => i.ProductId == product.Id)
+                .Select(i => (int?)i.SortOrder)
+                .MaxAsync() ?? 0;
+
             Db.ProductImages.Add(new ProductImage
             {
                 ProductId = product.Id,
-                ImageUrl = $"/uploads/products/{fileName}"
+                ImageUrl = $"/uploads/products/{fileName}",
+                SortOrder = nextSortOrder + 1
             });
         }
 
@@ -226,7 +276,38 @@ else
         productForm = new Product();
         selectedImages = new List<IBrowserFile>();
         variantsInput = string.Empty;
+        editingImages = new List<ProductImage>();
         isEditing = false;
+
+        await LoadProducts();
+    }
+
+    private async Task SetMainImage(ProductImage selectedImage)
+    {
+        var images = await Db.ProductImages
+            .Where(i => i.ProductId == selectedImage.ProductId)
+            .OrderBy(i => i.SortOrder)
+            .ThenBy(i => i.Id)
+            .ToListAsync();
+
+        var imageToMove = images.FirstOrDefault(i => i.Id == selectedImage.Id);
+
+        if (imageToMove == null)
+        {
+            return;
+        }
+
+        images.Remove(imageToMove);
+        images.Insert(0, imageToMove);
+
+        for (int i = 0; i < images.Count; i++)
+        {
+            images[i].SortOrder = i + 1;
+        }
+
+        await Db.SaveChangesAsync();
+
+        editingImages = images;
 
         await LoadProducts();
     }
@@ -244,6 +325,8 @@ else
 
         variantsInput = string.Join(", ", product.Variants.Select(v => v.Color));
 
+        editingImages = product.Images.ToList();
+
         isEditing = true;
     }
 
@@ -259,9 +342,41 @@ else
         }
     }
 
+    private async Task DeleteImage(ProductImage image)
+    {
+        var imageToDelete = await Db.ProductImages.FindAsync(image.Id);
+
+        if (imageToDelete == null)
+        {
+            return;
+        }
+
+        var relativePath = imageToDelete.ImageUrl.TrimStart('/');
+
+        var filePath = Path.Combine(
+            Env.WebRootPath,
+            relativePath.Replace("/", Path.DirectorySeparatorChar.ToString())
+        );
+
+        if (File.Exists(filePath))
+        {
+            File.Delete(filePath);
+        }
+
+        Db.ProductImages.Remove(imageToDelete);
+        await Db.SaveChangesAsync();
+
+        editingImages.Remove(image);
+
+        await LoadProducts();
+    }
+
     private void CancelEdit()
     {
         productForm = new Product();
+        selectedImages = new List<IBrowserFile>();
+        variantsInput = string.Empty;
+        editingImages = new List<ProductImage>();
         isEditing = false;
     }
 }
