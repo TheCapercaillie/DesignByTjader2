@@ -1,5 +1,6 @@
 ﻿@page "/admin/orders"
 @rendermode InteractiveServer
+@inject ILogger<AdminOrders> Logger
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize]
@@ -20,8 +21,9 @@ else
     @foreach (var order in orders)
     {
         <div style="border:1px solid #ccc; padding:15px; margin-bottom:20px; border-radius:8px;">
-            
+
             <h4>Order #@order.Id</h4>
+
             <p><strong>Datum:</strong> @order.CreatedAt</p>
             <p><strong>Status:</strong> @order.Status</p>
             <p><strong>Total:</strong> @order.TotalPrice kr</p>
@@ -37,6 +39,27 @@ else
                 }
             </ul>
 
+            <div class="mt-3">
+                <button class="btn btn-sm btn-warning me-2" @onclick='() => UpdateStatus(order.Id, "Ny")'>
+                    Ny
+                </button>
+
+                <button class="btn btn-sm btn-success me-2" @onclick='() => UpdateStatus(order.Id, "Betald")'>
+                    Markera betald
+                </button>
+
+                <button class="btn btn-sm btn-primary me-2" @onclick='() => UpdateStatus(order.Id, "Klar")'>
+                    Markera klar
+                </button>
+
+                <button class="btn btn-sm btn-secondary me-2" @onclick='() => UpdateStatus(order.Id, "Avbruten")'>
+                    Markera avbruten
+                </button>
+
+                <button class="btn btn-sm btn-danger" @onclick="() => DeleteOrder(order.Id)">
+                    Radera order
+                </button>
+            </div>
         </div>
     }
 }
@@ -46,9 +69,62 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadOrders();
+    }
+
+    private async Task LoadOrders()
+    {
         orders = await Db.Orders
             .Include(o => o.OrderItems)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync();
+    }
+
+    private async Task UpdateStatus(int orderId, string status)
+    {
+        var order = await Db.Orders.FindAsync(orderId);
+
+        if (order == null)
+        {
+            return;
+        }
+
+        var oldStatus = order.Status;
+
+        order.Status = status;
+
+        await Db.SaveChangesAsync();
+
+        Logger.LogInformation(
+            "Orderstatus ändrades. OrderId: {OrderId}, GammalStatus: {OldStatus}, NyStatus: {NewStatus}",
+            orderId,
+            oldStatus,
+            status);
+
+        await LoadOrders();
+    }
+
+    private async Task DeleteOrder(int orderId)
+    {
+        var order = await Db.Orders
+            .Include(o => o.OrderItems)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+
+        if (order == null)
+        {
+            return;
+        }
+
+        Db.OrderItems.RemoveRange(order.OrderItems);
+        Db.Orders.Remove(order);
+
+        await Db.SaveChangesAsync();
+
+        Logger.LogWarning(
+            "Order raderades. OrderId: {OrderId}, TotalPris: {TotalPrice}",
+            order.Id,
+            order.TotalPrice);
+
+        await LoadOrders();
     }
 }

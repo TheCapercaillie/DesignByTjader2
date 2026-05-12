@@ -1,5 +1,6 @@
 ﻿@page "/admin/products"
 @rendermode InteractiveServer
+@inject ILogger<AdminProducts> Logger
 @using Microsoft.AspNetCore.Components.Forms
 @inject IWebHostEnvironment Env
 @using Microsoft.EntityFrameworkCore
@@ -271,6 +272,15 @@ else
 
         await Db.SaveChangesAsync();
 
+        if (isEditing)
+        {
+            Logger.LogInformation("Produkt redigerades. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
+        }
+        else
+        {
+            Logger.LogInformation("Ny produkt skapades. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
+        }
+
         message = isEditing ? "Produkten uppdaterades." : "Produkten lades till.";
 
         productForm = new Product();
@@ -307,6 +317,10 @@ else
 
         await Db.SaveChangesAsync();
 
+        Logger.LogInformation("Huvudbild ändrades. ProductId: {ProductId}, ImageId: {ImageId}",
+            selectedImage.ProductId,
+            selectedImage.Id);
+
         editingImages = images;
 
         await LoadProducts();
@@ -336,6 +350,8 @@ else
 
         if (product != null)
         {
+            Logger.LogWarning("Produkt togs bort. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
+
             Db.Products.Remove(product);
             await Db.SaveChangesAsync();
             await LoadProducts();
@@ -365,6 +381,12 @@ else
 
         Db.ProductImages.Remove(imageToDelete);
         await Db.SaveChangesAsync();
+
+        Logger.LogWarning(
+        "Produktbild togs bort. ImageId: {ImageId}, ProductId: {ProductId}, ImageUrl: {ImageUrl}",
+        imageToDelete.Id,
+        imageToDelete.ProductId,
+        imageToDelete.ImageUrl);
 
         editingImages.Remove(image);
 
