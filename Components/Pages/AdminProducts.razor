@@ -6,12 +6,16 @@
 @using Microsoft.EntityFrameworkCore
 @attribute [Authorize]
 @inject ApplicationDbContext Db
+@inject IJSRuntime JS
+@using Microsoft.JSInterop
 
 <h3>Admin - Produkter</h3>
 
 @if (!string.IsNullOrWhiteSpace(message))
 {
-    <p class="text-success">@message</p>
+    <div class="alert alert-@messageType">
+        @message
+    </div>
 }
 
 <h4>Lägg till / redigera produkt</h4>
@@ -155,6 +159,7 @@ else
     private IReadOnlyList<IBrowserFile> selectedImages = new List<IBrowserFile>();
     private string variantsInput = string.Empty;
     private string? message;
+    private string messageType = "success";
     private List<ProductImage> editingImages = new();
 
     private void HandleImageUpload(InputFileChangeEventArgs e)
@@ -181,11 +186,20 @@ else
         products = await Db.Products
             .Include(p => p.Images)
             .Include(p => p.Variants)
+            .OrderBy(p => p.Category)
+            .ThenBy(p => p.Name)
             .ToListAsync();
     }
 
     private async Task SaveProduct()
     {
+        if (string.IsNullOrWhiteSpace(productForm.Name))
+        {
+            messageType = "danger";
+            message = "Du måste ange ett produktnamn.";
+            return;
+        }
+
         Product? product;
 
         if (isEditing)
@@ -197,6 +211,8 @@ else
 
             if (product == null)
             {
+                messageType = "danger";
+                message = "Produkten kunde inte hittas.";
                 return;
             }
 
@@ -219,9 +235,14 @@ else
             await Db.SaveChangesAsync();
         }
 
+        var nextSortOrder = await Db.ProductImages
+            .Where(i => i.ProductId == product.Id)
+            .Select(i => (int?)i.SortOrder)
+            .MaxAsync() ?? 0;
+
         foreach (var image in selectedImages)
         {
-            var fileExtension = Path.GetExtension(image.Name);
+            var fileExtension = Path.GetExtension(image.Name).ToLowerInvariant();
             var fileName = $"{Guid.NewGuid()}{fileExtension}";
             var folderPath = Path.Combine(Env.WebRootPath, "uploads", "products");
 
@@ -235,29 +256,32 @@ else
             await using var stream = new FileStream(filePath, FileMode.Create);
             await image.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
 
-            var nextSortOrder = await Db.ProductImages
-                .Where(i => i.ProductId == product.Id)
-                .Select(i => (int?)i.SortOrder)
-                .MaxAsync() ?? 0;
+            nextSortOrder++;
 
             Db.ProductImages.Add(new ProductImage
             {
                 ProductId = product.Id,
                 ImageUrl = $"/uploads/products/{fileName}",
-                SortOrder = nextSortOrder + 1
+                SortOrder = nextSortOrder
             });
+
+            Logger.LogInformation(
+                "Produktbild laddades upp. ProductId: {ProductId}, ImageUrl: {ImageUrl}",
+                product.Id,
+                $"/uploads/products/{fileName}");
+        }
+
+        if (isEditing)
+        {
+            Db.ProductVariants.RemoveRange(product.Variants);
         }
 
         if (!string.IsNullOrWhiteSpace(variantsInput))
         {
-            if (isEditing)
-            {
-                Db.ProductVariants.RemoveRange(product.Variants);
-            }
-
             var colors = variantsInput
                 .Split(',', StringSplitOptions.RemoveEmptyEntries)
                 .Select(c => c.Trim())
+                .Where(c => !string.IsNullOrWhiteSpace(c))
                 .ToList();
 
             foreach (var color in colors)
@@ -274,14 +298,24 @@ else
 
         if (isEditing)
         {
-            Logger.LogInformation("Produkt redigerades. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
+            Logger.LogInformation(
+                "Produkt redigerades. ProductId: {ProductId}, Namn: {ProductName}",
+                product.Id,
+                product.Name);
+
+            messageType = "success";
+            message = $"Produkten '{product.Name}' uppdaterades.";
         }
         else
         {
-            Logger.LogInformation("Ny produkt skapades. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
-        }
+            Logger.LogInformation(
+                "Ny produkt skapades. ProductId: {ProductId}, Namn: {ProductName}",
+                product.Id,
+                product.Name);
 
-        message = isEditing ? "Produkten uppdaterades." : "Produkten lades till.";
+            messageType = "success";
+            message = $"Produkten '{product.Name}' lades till.";
+        }
 
         productForm = new Product();
         selectedImages = new List<IBrowserFile>();
@@ -348,14 +382,33 @@ else
     {
         var product = await Db.Products.FindAsync(id);
 
-        if (product != null)
+        if (product == null)
         {
-            Logger.LogWarning("Produkt togs bort. ProductId: {ProductId}, Namn: {ProductName}", product.Id, product.Name);
-
-            Db.Products.Remove(product);
-            await Db.SaveChangesAsync();
-            await LoadProducts();
+            return;
         }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            $"Är du säker på att du vill ta bort produkten '{product.Name}'?"
+        );
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        Logger.LogWarning(
+            "Produkt togs bort. ProductId: {ProductId}, Namn: {ProductName}",
+            product.Id,
+            product.Name);
+
+        Db.Products.Remove(product);
+        await Db.SaveChangesAsync();
+
+        messageType = "warning";
+        message = $"Produkten '{product.Name}' togs bort.";
+
+        await LoadProducts();
     }
 
     private async Task DeleteImage(ProductImage image)
@@ -363,6 +416,16 @@ else
         var imageToDelete = await Db.ProductImages.FindAsync(image.Id);
 
         if (imageToDelete == null)
+        {
+            return;
+        }
+
+        var confirmed = await JS.InvokeAsync<bool>(
+            "confirm",
+            "Är du säker på att du vill ta bort denna bild?"
+        );
+
+        if (!confirmed)
         {
             return;
         }
@@ -383,12 +446,15 @@ else
         await Db.SaveChangesAsync();
 
         Logger.LogWarning(
-        "Produktbild togs bort. ImageId: {ImageId}, ProductId: {ProductId}, ImageUrl: {ImageUrl}",
-        imageToDelete.Id,
-        imageToDelete.ProductId,
-        imageToDelete.ImageUrl);
+            "Produktbild togs bort. ImageId: {ImageId}, ProductId: {ProductId}, ImageUrl: {ImageUrl}",
+            imageToDelete.Id,
+            imageToDelete.ProductId,
+            imageToDelete.ImageUrl);
 
         editingImages.Remove(image);
+
+        messageType = "warning";
+        message = "Bilden togs bort.";
 
         await LoadProducts();
     }
