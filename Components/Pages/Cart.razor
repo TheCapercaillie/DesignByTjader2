@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @inject CartService CartService
 @inject ApplicationDbContext Db
+@inject NavigationManager Navigation
 
 <div class="page-container">
     <div class="section-title">
@@ -58,7 +59,7 @@
             </button>
 
             <button class="btn-main ms-2" @onclick="Checkout">
-                Gå till betalning
+                Beställningsförfrågan
             </button>
         }
     </div>
@@ -95,34 +96,8 @@
     }
 }
 @code {
-    private async Task Checkout()
+    private void Checkout()
     {
-        var order = new Order
-        {
-            TotalPrice = CartService.GetTotalPrice(),
-            Status = "Pending"
-        };
-
-        Db.Orders.Add(order);
-        await Db.SaveChangesAsync();
-
-        foreach (var item in CartService.Items)
-        {
-            Db.OrderItems.Add(new OrderItem
-            {
-                OrderId = order.Id,
-                ProductName = item.ProductName,
-                Price = item.Price,
-                Quantity = item.Quantity,
-                SelectedColor = item.SelectedColor
-            });
-        }
-
-        await Db.SaveChangesAsync();
-
-        await CartService.ClearCartAsync();
-
-        // SENARE:
-        // redirect till Stripe / Swish / Klarna
+        Navigation.NavigateTo("/order-request");
     }
 }

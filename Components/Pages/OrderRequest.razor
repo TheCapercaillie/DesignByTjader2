@@ -1,0 +1,108 @@
+﻿@page "/order-request"
+@rendermode InteractiveServer
+
+@inject CartService CartService
+@inject ApplicationDbContext Db
+@inject NavigationManager Navigation
+@inject ILogger<OrderRequest> Logger
+
+<h3>Beställningsförfrågan</h3>
+
+@if (!CartService.Items.Any())
+{
+    <p>Din kundvagn är tom.</p>
+
+    <a class="btn btn-primary" href="/products">
+        Till produkter
+    </a>
+}
+else
+{
+    <div class="mb-3">
+        <label>Namn</label>
+        <input class="form-control" @bind="customerName" />
+    </div>
+
+    <div class="mb-3">
+        <label>E-post</label>
+        <input class="form-control" @bind="customerEmail" />
+    </div>
+
+    <div class="mb-3">
+        <label>Telefonnummer</label>
+        <input class="form-control" @bind="customerPhone" />
+    </div>
+
+    <div class="mb-3">
+        <label>Meddelande (frivilligt)</label>
+        <textarea class="form-control" @bind="message"></textarea>
+    </div>
+
+    <h4>Produkter</h4>
+
+    <ul>
+        @foreach (var item in CartService.Items)
+        {
+            <li>
+                @item.ProductName
+                (@(item.SelectedColor ?? "-"))
+                - @item.Quantity st
+            </li>
+        }
+    </ul>
+
+    <h5>Totalpris: @CartService.GetTotalPrice() kr</h5>
+
+    <button class="btn btn-success"
+            @onclick="SubmitOrder">
+        Skicka beställningsförfrågan
+    </button>
+}
+
+@code {
+
+    private string customerName = "";
+    private string customerEmail = "";
+    private string customerPhone = "";
+    private string message = "";
+
+    private async Task SubmitOrder()
+    {
+        var order = new Order
+        {
+            CustomerName = customerName,
+            CustomerEmail = customerEmail,
+            CustomerPhone = customerPhone,
+            Message = message,
+            TotalPrice = CartService.GetTotalPrice(),
+            Status = "Ny"
+        };
+
+        Db.Orders.Add(order);
+
+        await Db.SaveChangesAsync();
+
+        foreach (var item in CartService.Items)
+        {
+            Db.OrderItems.Add(new OrderItem
+            {
+                OrderId = order.Id,
+                ProductName = item.ProductName,
+                Price = item.Price,
+                Quantity = item.Quantity,
+                SelectedColor = item.SelectedColor
+            });
+        }
+
+        await Db.SaveChangesAsync();
+
+        Logger.LogInformation(
+            "Ny beställningsförfrågan skapades. OrderId: {OrderId}, Kund: {CustomerName}",
+            order.Id,
+            order.CustomerName);
+
+        await CartService.ClearCartAsync();
+
+        Navigation.NavigateTo("/");
+    }
+}
