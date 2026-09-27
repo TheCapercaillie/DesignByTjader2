@@ -1,4 +1,19 @@
 ﻿@inherits LayoutComponentBase
+@inject NavigationManager NavManager
+@implements IDisposable
+
+@if (!IsAdminPage)
+{
+    <div class="site-topbar">
+        <a href="/" class="site-topbar-logo">
+            <img src="/images/logo/logo.jpeg" alt="Design By Tjäder" />
+        </a>
+
+        <a href="/cart" class="site-topbar-cart">
+            Kundvagn
+        </a>
+    </div>
+}
 
 @Body
 
@@ -7,3 +22,22 @@
     <a href="." class="reload">Reload</a>
     <span class="dismiss">🗙</span>
 </div>
+
+@code {
+    private bool IsAdminPage => NavManager.Uri.Contains("/admin", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        NavManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        NavManager.LocationChanged -= OnLocationChanged;
+    }
+}
