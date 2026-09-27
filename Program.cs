@@ -47,39 +47,6 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager = scope.ServiceProvider
-        .GetRequiredService<RoleManager<IdentityRole>>();
-
-    var userManager = scope.ServiceProvider
-        .GetRequiredService<UserManager<ApplicationUser>>();
-
-    const string adminRole = "Admin";
-
-    if (!await roleManager.RoleExistsAsync(adminRole))
-    {
-        await roleManager.CreateAsync(new IdentityRole(adminRole));
-    }
-
-   
-    var adminEmails = new[]
-    {
-        "jonathan.tjader@gmail.com",
-        "designbytjader@gmail.com"
-    };
-
-    foreach (var email in adminEmails)
-    {
-        var user = await userManager.FindByEmailAsync(email);
-
-        if (user != null && !await userManager.IsInRoleAsync(user, adminRole))
-        {
-            await userManager.AddToRoleAsync(user, adminRole);
-        }
-    }
-}
-
 if (app.Environment.IsDevelopment())
 {
     app.UseMigrationsEndPoint();

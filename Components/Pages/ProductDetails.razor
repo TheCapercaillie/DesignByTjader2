@@ -1,0 +1,126 @@
+﻿@page "/product/{Id:int}"
+@rendermode InteractiveServer
+@using Microsoft.EntityFrameworkCore
+@inject ApplicationDbContext Db
+@inject CartService CartService
+@inject NavigationManager NavManager
+
+<div class="product-details-page">
+
+    @if (product == null)
+    {
+        <p>Laddar produkt...</p>
+    }
+    else
+    {
+        <a class="back-link" href="/products">&larr; Tillbaka till produkter</a>
+
+        <div class="product-details-layout">
+
+            <div class="product-details-gallery">
+                @if (selectedImage != null)
+                {
+                    <img src="@selectedImage.ImageUrl" alt="@product.Name" class="product-details-main-image" />
+                }
+                else
+                {
+                    <div class="product-details-main-image"></div>
+                }
+
+                @if (galleryImages.Count > 1)
+                {
+                    <div class="product-details-thumbnails">
+                        @foreach (var image in galleryImages)
+                        {
+                            <img src="@image.ImageUrl"
+                                 alt="@product.Name"
+                                 class="@("product-details-thumbnail" + (image == selectedImage ? " active" : ""))"
+                                 @onclick="() => selectedImage = image" />
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="product-details-info">
+                <div class="product-category">@product.Category</div>
+
+                <h1>@product.Name</h1>
+
+                <div class="product-price">@product.Price kr</div>
+
+                <p class="product-details-description">@product.Description</p>
+
+                @if (product.Variants.Any())
+                {
+                    <div class="variant-select">
+                        <label>Välj variant</label>
+                        <select @bind="selectedColor">
+                            @foreach (var variant in product.Variants)
+                            {
+                                <option value="@variant.Color">@variant.Color</option>
+                            }
+                        </select>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(message))
+                {
+                    <div class="product-message">
+                        @message
+                    </div>
+                }
+
+                <button class="btn-main add-cart-btn" @onclick="AddToCart">
+                    Lägg i kundvagn
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Product? product;
+    private List<ProductImage> galleryImages = new();
+    private ProductImage? selectedImage;
+    private string? selectedColor;
+    private string? message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        product = await Db.Products
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+            .FirstOrDefaultAsync(p => p.Id == Id);
+
+        if (product == null)
+        {
+            NavManager.NavigateTo("/products");
+            return;
+        }
+
+        galleryImages = product.Images
+            .GroupBy(i => i.ImageUrl)
+            .Select(g => g.First())
+            .OrderBy(i => i.SortOrder)
+            .ThenBy(i => i.Id)
+            .ToList();
+
+        selectedImage = galleryImages.FirstOrDefault();
+        selectedColor = product.Variants.FirstOrDefault()?.Color;
+    }
+
+    private async Task AddToCart()
+    {
+        if (product == null)
+        {
+            return;
+        }
+
+        await CartService.AddToCartAsync(product, selectedColor);
+
+        message = $"{product.Name} lades till i kundvagnen.";
+    }
+}

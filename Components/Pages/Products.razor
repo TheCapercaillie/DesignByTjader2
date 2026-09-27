@@ -63,16 +63,18 @@
                         var thumbnails = images.Skip(1).Take(9).ToList();
                     }
 
-                    @if (mainImage != null)
-                    {
-                        <img src="@mainImage.ImageUrl"
-                             alt="@product.Name"
-                             class="product-main-image" />
-                    }
-                    else
-                    {
-                        <div class="product-main-image"></div>
-                    }
+                    <a href="/product/@product.Id" class="product-link">
+                        @if (mainImage != null)
+                        {
+                            <img src="@mainImage.ImageUrl"
+                                 alt="@product.Name"
+                                 class="product-main-image" />
+                        }
+                        else
+                        {
+                            <div class="product-main-image"></div>
+                        }
+                    </a>
 
                     @if (thumbnails.Any())
                     {
@@ -89,7 +91,9 @@
                     <div class="product-card-content">
                         <div class="product-category">@product.Category</div>
 
-                        <h4>@product.Name</h4>
+                        <a href="/product/@product.Id" class="product-link">
+                            <h4>@product.Name</h4>
+                        </a>
 
                         <p class="product-description">@product.Description</p>
 
