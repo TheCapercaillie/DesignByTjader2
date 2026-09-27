@@ -65,8 +65,15 @@
 
                 @if (!string.IsNullOrEmpty(message))
                 {
-                    <div class="product-message">
-                        @message
+                    <div class="cart-toast" @key="toastKey">
+                        <span>✓ @message</span>
+
+                        @if (addedQuantity > 1)
+                        {
+                            <span class="cart-toast-count">x@(addedQuantity)</span>
+                        }
+
+                        <a href="/cart" class="cart-toast-link">Visa kundvagn</a>
                     </div>
                 }
 
@@ -87,6 +94,9 @@
     private ProductImage? selectedImage;
     private string? selectedColor;
     private string? message;
+    private int addedQuantity;
+    private int toastKey;
+    private CancellationTokenSource? toastCts;
 
     protected override async Task OnInitializedAsync()
     {
@@ -121,6 +131,29 @@
 
         await CartService.AddToCartAsync(product, selectedColor);
 
+        addedQuantity = CartService.Items
+            .FirstOrDefault(i => i.ProductId == product.Id && i.SelectedColor == selectedColor)?.Quantity ?? 1;
+
         message = $"{product.Name} lades till i kundvagnen.";
+        toastKey++;
+        StateHasChanged();
+
+        await HideToastAfterDelay();
+    }
+
+    private async Task HideToastAfterDelay()
+    {
+        toastCts?.Cancel();
+        toastCts = new CancellationTokenSource();
+        var token = toastCts.Token;
+
+        try
+        {
+            await Task.Delay(3500, token);
+            message = null;
+        }
+        catch (TaskCanceledException)
+        {
+        }
     }
 }
