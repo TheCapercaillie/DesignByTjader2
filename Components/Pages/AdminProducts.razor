@@ -54,10 +54,11 @@
 
 <div class="mb-3">
     <label>Bilder</label>
-    <InputFile OnChange="HandleImageUpload" multiple />
+    <InputFile OnChange="HandleImageUpload" multiple accept="image/*" class="admin-file-input" />
 
     <small class="text-muted d-block mt-1">
         Välj endast nya bilder som ska läggas till. Befintliga bilder ligger kvar tills du tar bort dem.
+        På mobilen kan du välja bilder direkt från galleriet eller ta ett nytt foto.
     </small>
 </div>
 
@@ -119,6 +120,7 @@ else if (!products.Any())
 }
 else
 {
+    <div class="table-scroll">
     <table class="table">
         <thead>
             <tr>
@@ -135,7 +137,7 @@ else
                 <tr>
                     <td>@product.Name</td>
                     <td>@product.Category</td>
-                    <td>@product.Description</td>
+                    <td class="admin-description-cell">@product.Description</td>
                     <td>@product.Price kr</td>
                     <td>
                         <button class="btn btn-sm btn-warning" @onclick="() => EditProduct(product)">
@@ -149,7 +151,8 @@ else
                 </tr>
             }
         </tbody>
-    </table>
+        </table>
+    </div>
 }
 
 @code {
