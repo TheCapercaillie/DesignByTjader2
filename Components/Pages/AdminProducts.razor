@@ -54,7 +54,25 @@
 
 <div class="mb-3">
     <label>Bilder</label>
-    <InputFile OnChange="HandleImageUpload" multiple accept="image/*" class="admin-file-input" />
+    <InputFile @key="fileInputKey" OnChange="HandleImageUpload" multiple accept="image/*" class="admin-file-input" />
+
+    @if (pendingImages.Any())
+    {
+        <div class="mt-2">
+            <strong>Valda bilder (@pendingImages.Count/10):</strong>
+
+            @foreach (var img in pendingImages.ToList())
+            {
+                <div class="d-flex align-items-center justify-content-between border rounded p-2 mt-1 bg-white">
+                    <span>@img.Name (@(img.Data.Length / 1024) KB)</span>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            @onclick="() => pendingImages.Remove(img)">
+                        Ta bort
+                    </button>
+                </div>
+            }
+        </div>
+    }
 
     <small class="text-muted d-block mt-1">
         Välj endast nya bilder som ska läggas till. Befintliga bilder ligger kvar tills du tar bort dem.
@@ -159,24 +177,55 @@ else
     private List<Product>? products;
     private Product productForm = new();
     private bool isEditing = false;
-    private IReadOnlyList<IBrowserFile> selectedImages = new List<IBrowserFile>();
+    private record PendingImage(string Name, byte[] Data);
+    private List<PendingImage> pendingImages = new();
+    private int fileInputKey = 0;
+    private static readonly string[] AllowedExtensions = { ".jpg", ".jpeg", ".png", ".webp" };
+    private static readonly string[] AllowedContentTypes = { "image/jpeg", "image/png", "image/webp" };
+    private const long MaxImageSize = 5 * 1024 * 1024;
     private string variantsInput = string.Empty;
     private string? message;
     private string messageType = "success";
     private List<ProductImage> editingImages = new();
-
-    private void HandleImageUpload(InputFileChangeEventArgs e)
+   
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
-        var files = e.GetMultipleFiles();
+        var newFiles = e.GetMultipleFiles(100);
 
-        if (files.Count > 10)
+        foreach (var file in newFiles)
         {
-            message = "Du kan max ladda upp 10 bilder per produkt.";
-            selectedImages = new List<IBrowserFile>();
-            return;
+            var extension = Path.GetExtension(file.Name).ToLowerInvariant();
+
+            if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(file.ContentType))
+            {
+                messageType = "danger";
+                message = $"'{file.Name}' hoppades över. Endast JPG, PNG och WebP är tillåtna.";
+                continue;
+            }
+
+            if (pendingImages.Count >= 10)
+            {
+                messageType = "danger";
+                message = "Du kan max ladda upp 10 bilder per produkt.";
+                break;
+            }
+
+            try
+            {
+                using var stream = file.OpenReadStream(MaxImageSize);
+                using var ms = new MemoryStream();
+                await stream.CopyToAsync(ms);
+                pendingImages.Add(new PendingImage(file.Name, ms.ToArray()));
+                message = null;
+            }
+            catch (IOException)
+            {
+                messageType = "danger";
+                message = $"'{file.Name}' är större än 5 MB och hoppades över.";
+            }
         }
 
-        selectedImages = files;
+        fileInputKey++;
     }
 
     protected override async Task OnInitializedAsync()
@@ -243,7 +292,7 @@ else
             .Select(i => (int?)i.SortOrder)
             .MaxAsync() ?? 0;
 
-        foreach (var image in selectedImages)
+        foreach (var image in pendingImages)
         {
             var fileExtension = Path.GetExtension(image.Name).ToLowerInvariant();
             var fileName = $"{Guid.NewGuid()}{fileExtension}";
@@ -254,10 +303,7 @@ else
                 Directory.CreateDirectory(folderPath);
             }
 
-            var filePath = Path.Combine(folderPath, fileName);
-
-            await using var stream = new FileStream(filePath, FileMode.Create);
-            await image.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).CopyToAsync(stream);
+            await File.WriteAllBytesAsync(Path.Combine(folderPath, fileName), image.Data);
 
             nextSortOrder++;
 
@@ -321,7 +367,8 @@ else
         }
 
         productForm = new Product();
-        selectedImages = new List<IBrowserFile>();
+        pendingImages = new List<PendingImage>();
+        fileInputKey++;
         variantsInput = string.Empty;
         editingImages = new List<ProductImage>();
         isEditing = false;
@@ -465,7 +512,8 @@ else
     private void CancelEdit()
     {
         productForm = new Product();
-        selectedImages = new List<IBrowserFile>();
+        pendingImages = new List<PendingImage>();
+        fileInputKey++;
         variantsInput = string.Empty;
         editingImages = new List<ProductImage>();
         isEditing = false;
